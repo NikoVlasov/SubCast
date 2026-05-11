@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#111111">
+<title>Ultra Translator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #111111;
+    color: #ffffff;
+    font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+
+  /* ── Status bar ── */
+  #status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 10px;
+    flex-shrink: 0;
+  }
+
+  #app-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.25);
+  }
+
+  #status-badge {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: #1c1c1c;
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.4);
+  }
+
+  #dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #333;
+    flex-shrink: 0;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  #dot.live    { background: #22c55e; box-shadow: 0 0 8px #22c55e88; }
+  #dot.error   { background: #ef4444; }
+  #dot.waiting { background: #f59e0b; }
+
+  /* ── Feed ── */
+  #feed-wrap {
+    flex: 1;
+    position: relative;
+    min-height: 0;
+  }
+
+  #feed {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    scroll-behavior: smooth;
+  }
+
+  #feed-spacer { flex: 1; }
+
+  .entry {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    animation: slide-in 0.25s ease;
+  }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .entry-time {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 0.04em;
+  }
+
+  .entry-text {
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: #ffffff;
+    word-break: break-word;
+  }
+
+  .entry:last-child .entry-text { color: #ffffff; }
+  .entry:not(:last-child) .entry-text { color: rgba(255,255,255,0.55); }
+  .entry:not(:last-child) .entry-time { color: rgba(255,255,255,0.15); }
+
+  /* ── Scroll-to-bottom button ── */
+  #scroll-btn {
+    position: absolute;
+    bottom: 12px;
+    right: 16px;
+    background: #22c55e;
+    color: #000;
+    border: none;
+    border-radius: 100px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    z-index: 10;
+  }
+  #scroll-btn.visible { display: flex; }
+
+  /* ── Divider ── */
+  #divider { height: 1px; background: #1e1e1e; flex-shrink: 0; }
+
+  /* ── Controls ── */
+  #controls {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 16px 14px;
+  }
+
+  input[type="text"],
+  select {
+    width: 100%;
+    background: #1c1c1c;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    color: #ffffff;
+    font-size: 16px;
+    padding: 14px 16px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  input[type="text"]::placeholder { color: rgba(255,255,255,0.25); }
+  input[type="text"]:focus,
+  select:focus { border-color: #3b82f6; }
+
+  #lang-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .select-wrap {
+    position: relative;
+    flex: 1;
+  }
+  .select-wrap::after {
+    content: '▾';
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255,255,255,0.35);
+    pointer-events: none;
+    font-size: 14px;
+  }
+  .select-wrap select { padding-right: 32px; }
+
+  #lang-arrow {
+    font-size: 18px;
+    color: rgba(255,255,255,0.25);
+    flex-shrink: 0;
+  }
+
+  /* ── Quality selector ── */
+  #quality-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .q-btn {
+    flex: 1;
+    padding: 11px 6px;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    background: #1c1c1c;
+    color: rgba(255,255,255,0.45);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .q-btn.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+  }
+
+  /* ── Subtitle delay ── */
+  #delay-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  #delay-label {
+    font-size: 13px;
+    color: rgba(255,255,255,0.4);
+    flex: 1;
+  }
+
+  .adj-btn {
+    width: 36px;
+    height: 36px;
+    background: #1c1c1c;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    color: rgba(255,255,255,0.75);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .adj-btn:active { opacity: 0.6; }
+
+  #delay-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.75);
+    min-width: 38px;
+    text-align: center;
+  }
+
+  /* ── Action buttons ── */
+  #btn-row { display: flex; gap: 10px; }
+
+  #btn-row button {
+    flex: 1;
+    padding: 16px;
+    border: none;
+    border-radius: 12px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  #btn-start          { background: #22c55e; color: #000; }
+  #btn-start:disabled { background: #1a3d27; color: #2d7a4a; }
+  #btn-stop           { background: #ef4444; color: #fff; }
+  #btn-stop:disabled  { background: #3d1a1a; color: #7a2d2d; }
+</style>
+</head>
+<body>
+
+<div id="status-bar">
+  <span id="app-title">Ultra Translator</span>
+  <div id="status-badge">
+    <span id="dot"></span>
+    <span id="status-text">Offline</span>
+  </div>
+</div>
+
+<div id="feed-wrap">
+  <div id="feed">
+    <div id="feed-spacer"></div>
+    <!-- entries injected here -->
+  </div>
+  <button id="scroll-btn">↓ Latest</button>
+</div>
+
+<div id="divider"></div>
+
+<div id="controls">
+  <input type="text" id="url-input" placeholder="Twitch, YouTube Live, or Kick URL" />
+
+  <div id="lang-row">
+    <div class="select-wrap"><select id="src-lang"></select></div>
+    <div id="lang-arrow">→</div>
+    <div class="select-wrap"><select id="dest-lang"></select></div>
+  </div>
+
+  <div id="quality-row">
+    <button class="q-btn active" data-quality="480p">480p</button>
+    <button class="q-btn" data-quality="720p">720p</button>
+    <button class="q-btn" data-quality="auto">Auto</button>
+  </div>
+
+  <div id="delay-row">
+    <span id="delay-label">Subtitle delay</span>
+    <button class="adj-btn" id="delay-minus">−</button>
+    <span id="delay-value">3s</span>
+    <button class="adj-btn" id="delay-plus">+</button>
+  </div>
+
+  <div id="btn-row">
+    <button id="btn-start">Start</button>
+    <button id="btn-stop" disabled>Stop</button>
+  </div>
+</div>
+
+<script>
+const API      = window.location.origin;
+const MAX_ENTRIES = 50;
+
+const LANGUAGES = [
+  ["Afrikaans","af"],["Arabic","ar"],["Bulgarian","bg"],
+  ["Chinese (Simplified)","zh-CN"],["Chinese (Traditional)","zh-TW"],
+  ["Croatian","hr"],["Czech","cs"],["Danish","da"],["Dutch","nl"],
+  ["English","en"],["Estonian","et"],["Finnish","fi"],["French","fr"],
+  ["German","de"],["Greek","el"],["Hebrew","he"],["Hungarian","hu"],
+  ["Indonesian","id"],["Italian","it"],["Japanese","ja"],["Korean","ko"],
+  ["Latvian","lv"],["Lithuanian","lt"],["Norwegian","no"],["Polish","pl"],
+  ["Portuguese","pt"],["Romanian","ro"],["Russian","ru"],["Serbian","sr"],
+  ["Slovak","sk"],["Slovenian","sl"],["Spanish","es"],["Swedish","sv"],
+  ["Thai","th"],["Turkish","tr"],["Ukrainian","uk"],["Vietnamese","vi"],
+];
+
+const feed      = document.getElementById('feed');
+const scrollBtn = document.getElementById('scroll-btn');
+const srcSel    = document.getElementById('src-lang');
+const destSel   = document.getElementById('dest-lang');
+const urlInput  = document.getElementById('url-input');
+const btnStart  = document.getElementById('btn-start');
+const btnStop   = document.getElementById('btn-stop');
+const dot       = document.getElementById('dot');
+const statusTx  = document.getElementById('status-text');
+
+// Populate language dropdowns
+LANGUAGES.forEach(([name, code]) => {
+  [srcSel, destSel].forEach(sel => sel.add(new Option(name, code)));
+});
+srcSel.value  = 'es';
+destSel.value = 'ru';
+
+// ── Quality selector ──────────────────────────────────────────────────────────
+let selectedQuality = '480p';
+
+document.querySelectorAll('.q-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    selectedQuality = btn.dataset.quality;
+    document.querySelectorAll('.q-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+// ── Subtitle delay ────────────────────────────────────────────────────────────
+let subtitleDelay = 3;
+const delayDisplay = document.getElementById('delay-value');
+
+document.getElementById('delay-minus').addEventListener('click', () => {
+  if (subtitleDelay > 0) {
+    subtitleDelay = Math.max(0, subtitleDelay - 1);
+    delayDisplay.textContent = subtitleDelay + 's';
+  }
+});
+
+document.getElementById('delay-plus').addEventListener('click', () => {
+  if (subtitleDelay < 10) {
+    subtitleDelay = Math.min(10, subtitleDelay + 1);
+    delayDisplay.textContent = subtitleDelay + 's';
+  }
+});
+
+// ── Feed state ────────────────────────────────────────────────────────────────
+let lastText   = '';
+let entryCount = 0;
+
+// Tracks texts currently queued in a delay timeout (prevents double-scheduling)
+const scheduledTexts = new Set();
+
+function isScrolledUp() {
+  return feed.scrollHeight - feed.scrollTop - feed.clientHeight > 40;
+}
+
+function scrollToBottom() {
+  feed.scrollTo({ top: feed.scrollHeight, behavior: 'smooth' });
+}
+
+feed.addEventListener('scroll', () => {
+  scrollBtn.classList.toggle('visible', isScrolledUp());
+}, { passive: true });
+
+scrollBtn.addEventListener('click', scrollToBottom);
+
+function addEntry(text) {
+  const now = new Date();
+  const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const entry = document.createElement('div');
+  entry.className = 'entry';
+  entry.innerHTML =
+    `<span class="entry-time">${time}</span>` +
+    `<span class="entry-text">${escapeHtml(text)}</span>`;
+
+  feed.appendChild(entry);
+  entryCount++;
+
+  if (entryCount > MAX_ENTRIES) {
+    const oldest = feed.querySelector('.entry');
+    if (oldest) { oldest.remove(); entryCount--; }
+  }
+
+  if (!isScrolledUp()) {
+    scrollToBottom();
+  }
+}
+
+function scheduleEntry(text) {
+  scheduledTexts.add(text);
+  setTimeout(() => {
+    scheduledTexts.delete(text);
+    lastText = text;
+    addEntry(text);
+  }, subtitleDelay * 1000);
+}
+
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+// ── Status ────────────────────────────────────────────────────────────────────
+function platformIcon(url) {
+  if (!url) return '';
+  if (url.includes('twitch.tv'))                           return '🎮';
+  if (url.includes('youtube.com') || url.includes('youtu.be')) return '▶️';
+  if (url.includes('kick.com'))                            return '🟢';
+  return '';
+}
+
+function setStatus(state, label) {
+  dot.className        = state;
+  statusTx.textContent = label;
+}
+
+function setRunning(on) {
+  btnStart.disabled = on;
+  btnStop.disabled  = !on;
+  const icon  = on ? platformIcon(urlInput.value.trim()) : '';
+  const label = on ? (icon ? icon + ' Live' : 'Live') : 'Stopped';
+  setStatus(on ? 'live' : '', label);
+}
+
+// ── Polling ───────────────────────────────────────────────────────────────────
+async function poll() {
+  try {
+    const res = await fetch(`${API}/latest`);
+    if (!res.ok) throw new Error();
+    const d    = await res.json();
+    const text = (d.translation || '').trim();
+    if (text && text !== lastText && !scheduledTexts.has(text)) {
+      scheduleEntry(text);
+    }
+    setStatus('live', 'Live');
+  } catch {
+    setStatus('error', 'No connection');
+  }
+}
+
+setInterval(poll, 3000);
+
+// ── Start / Stop ──────────────────────────────────────────────────────────────
+btnStart.addEventListener('click', async () => {
+  const url = urlInput.value.trim();
+  if (!url) { urlInput.focus(); return; }
+
+  btnStart.disabled = true;
+  setStatus('waiting', 'Starting…');
+
+  try {
+    const res = await fetch(`${API}/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        stream_url: url,
+        src_lang: srcSel.value,
+        dest_lang: destSel.value,
+        quality: selectedQuality,
+      }),
+    });
+    if (res.ok) { setRunning(true); poll(); }
+    else        { btnStart.disabled = false; setStatus('error', 'Failed to start'); }
+  } catch {
+    btnStart.disabled = false;
+    setStatus('error', 'No connection');
+  }
+});
+
+btnStop.addEventListener('click', async () => {
+  btnStop.disabled = true;
+  try { await fetch(`${API}/stop`, { method: 'POST' }); } catch {}
+  setRunning(false);
+});
+
+// ── Restore state on load ─────────────────────────────────────────────────────
+(async () => {
+  try {
+    const res = await fetch(`${API}/status`);
+    if (!res.ok) return;
+    const s = await res.json();
+    if (s.stream_url) urlInput.value = s.stream_url;
+    if (s.src_lang)   srcSel.value   = s.src_lang.toLowerCase();
+    if (s.dest_lang)  destSel.value  = s.dest_lang.toLowerCase();
+    if (s.quality) {
+      const match = document.querySelector(`.q-btn[data-quality="${s.quality}"]`);
+      if (match) {
+        document.querySelectorAll('.q-btn').forEach(b => b.classList.remove('active'));
+        match.classList.add('active');
+        selectedQuality = s.quality;
+      }
+    }
+    if (s.is_translating) { setRunning(true); poll(); }
+    else setStatus('', 'Stopped');
+  } catch {
+    setStatus('error', 'No connection');
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ultra Translator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: transparent;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    overflow: hidden;
+  }
+
+  #widget {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 700px;
+    max-width: 95vw;
+    background: rgba(10, 10, 10, 0.82);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    color: #fff;
+    user-select: none;
+    z-index: 999999;
+  }
+
+  /* ── Title bar (drag handle) ── */
+  #titlebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    cursor: grab;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  #titlebar:active { cursor: grabbing; }
+
+  #title-text {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: rgba(255,255,255,0.6);
+    text-transform: uppercase;
+  }
+
+  #status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #555;
+    transition: background 0.3s;
+    flex-shrink: 0;
+  }
+  #status-dot.active { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+  #status-dot.error  { background: #ef4444; }
+
+  /* ── Controls ── */
+  #controls {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  #url-row {
+    display: flex;
+    gap: 6px;
+  }
+
+  #url-input {
+    flex: 1;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    color: #fff;
+    font-size: 12px;
+    padding: 5px 8px;
+    outline: none;
+  }
+  #url-input::placeholder { color: rgba(255,255,255,0.35); }
+  #url-input:focus { border-color: rgba(99,179,237,0.6); }
+
+  #lang-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.55);
+  }
+
+  select {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    color: #fff;
+    font-size: 12px;
+    padding: 4px 6px;
+    outline: none;
+    cursor: pointer;
+  }
+  select option { background: #1a1a2e; color: #fff; }
+
+  #arrow { font-size: 14px; color: rgba(255,255,255,0.4); }
+
+  .btn {
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 14px;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+
+  #btn-start { background: #22c55e; color: #000; }
+  #btn-stop  { background: #ef4444; color: #fff; }
+  #btn-stop:disabled { display: none; }
+
+  /* ── Subtitle area ── */
+  #subtitle-area {
+    padding: 12px 14px;
+    min-height: 64px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+  }
+
+  #translation {
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: #fff;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    word-break: break-word;
+  }
+
+  #original {
+    margin-top: 6px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.4);
+    font-style: italic;
+    word-break: break-word;
+  }
+
+  #placeholder {
+    font-size: 14px;
+    color: rgba(255,255,255,0.25);
+    font-style: italic;
+  }
+
+  /* ── Collapse toggle ── */
+  #btn-collapse {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.45);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+  }
+  #btn-collapse:hover { color: #fff; }
+
+  #collapsible { transition: max-height 0.25s ease; overflow: hidden; }
+  #collapsible.collapsed { max-height: 0 !important; }
+</style>
+</head>
+<body>
+
+<div id="widget">
+  <div id="titlebar">
+    <span id="title-text">Ultra Translator</span>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span id="status-dot"></span>
+      <button id="btn-collapse" title="Collapse/Expand">&#9660;</button>
+    </div>
+  </div>
+
+  <div id="collapsible">
+    <div id="controls">
+      <div id="url-row">
+        <input id="url-input" type="text"
+               placeholder="Twitch or YouTube Live URL…" />
+        <button class="btn" id="btn-start">Start</button>
+        <button class="btn" id="btn-stop" disabled>Stop</button>
+      </div>
+
+      <div id="lang-row">
+        <span>From</span>
+        <select id="src-lang">
+          <option value="BG">Bulgarian</option>
+          <option value="CS">Czech</option>
+          <option value="DA">Danish</option>
+          <option value="DE">German</option>
+          <option value="EL">Greek</option>
+          <option value="EN">English</option>
+          <option value="ES" selected>Spanish</option>
+          <option value="ET">Estonian</option>
+          <option value="FI">Finnish</option>
+          <option value="FR">French</option>
+          <option value="HU">Hungarian</option>
+          <option value="ID">Indonesian</option>
+          <option value="IT">Italian</option>
+          <option value="JA">Japanese</option>
+          <option value="KO">Korean</option>
+          <option value="LT">Lithuanian</option>
+          <option value="LV">Latvian</option>
+          <option value="NL">Dutch</option>
+          <option value="PL">Polish</option>
+          <option value="PT">Portuguese</option>
+          <option value="RO">Romanian</option>
+          <option value="RU">Russian</option>
+          <option value="SK">Slovak</option>
+          <option value="SL">Slovenian</option>
+          <option value="SV">Swedish</option>
+          <option value="TR">Turkish</option>
+          <option value="UK">Ukrainian</option>
+          <option value="ZH">Chinese</option>
+        </select>
+        <span id="arrow">&#8594;</span>
+        <select id="dest-lang">
+          <option value="BG">Bulgarian</option>
+          <option value="CS">Czech</option>
+          <option value="DA">Danish</option>
+          <option value="DE">German</option>
+          <option value="EL">Greek</option>
+          <option value="EN-US">English (US)</option>
+          <option value="EN-GB">English (UK)</option>
+          <option value="ES">Spanish</option>
+          <option value="ET">Estonian</option>
+          <option value="FI">Finnish</option>
+          <option value="FR">French</option>
+          <option value="HU">Hungarian</option>
+          <option value="ID">Indonesian</option>
+          <option value="IT">Italian</option>
+          <option value="JA">Japanese</option>
+          <option value="KO">Korean</option>
+          <option value="LT">Lithuanian</option>
+          <option value="LV">Latvian</option>
+          <option value="NL">Dutch</option>
+          <option value="PL">Polish</option>
+          <option value="PT-PT">Portuguese (EU)</option>
+          <option value="PT-BR">Portuguese (BR)</option>
+          <option value="RO">Romanian</option>
+          <option value="RU" selected>Russian</option>
+          <option value="SK">Slovak</option>
+          <option value="SL">Slovenian</option>
+          <option value="SV">Swedish</option>
+          <option value="TR">Turkish</option>
+          <option value="UK">Ukrainian</option>
+          <option value="ZH">Chinese</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="subtitle-area">
+      <div id="translation"></div>
+      <div id="original"></div>
+      <div id="placeholder">Waiting for translation…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:5000';
+let polling = null;
+let lastText = '';
+let collapsed = false;
+
+// ── Dragging ──────────────────────────────────────────────
+const widget = document.getElementById('widget');
+const titlebar = document.getElementById('titlebar');
+
+let drag = { active: false, startX: 0, startY: 0, origLeft: 0, origTop: 0 };
+
+titlebar.addEventListener('mousedown', e => {
+  if (e.target.id === 'btn-collapse') return;
+  drag.active = true;
+  const rect = widget.getBoundingClientRect();
+  drag.startX = e.clientX;
+  drag.startY = e.clientY;
+  drag.origLeft = rect.left;
+  drag.origTop = rect.top;
+  // Switch from transform-based centering to absolute positioning
+  widget.style.left = rect.left + 'px';
+  widget.style.top = rect.top + 'px';
+  widget.style.bottom = 'auto';
+  widget.style.transform = 'none';
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', e => {
+  if (!drag.active) return;
+  widget.style.left = (drag.origLeft + e.clientX - drag.startX) + 'px';
+  widget.style.top  = (drag.origTop  + e.clientY - drag.startY) + 'px';
+});
+
+document.addEventListener('mouseup', () => { drag.active = false; });
+
+// ── Collapse ──────────────────────────────────────────────
+const collapsible = document.getElementById('collapsible');
+const btnCollapse = document.getElementById('btn-collapse');
+
+// Set explicit max-height so CSS transition works
+collapsible.style.maxHeight = collapsible.scrollHeight + 'px';
+
+btnCollapse.addEventListener('click', () => {
+  collapsed = !collapsed;
+  if (collapsed) {
+    collapsible.style.maxHeight = collapsible.scrollHeight + 'px';
+    requestAnimationFrame(() => collapsible.classList.add('collapsed'));
+    btnCollapse.innerHTML = '&#9650;';
+  } else {
+    collapsible.classList.remove('collapsed');
+    collapsible.style.maxHeight = collapsible.scrollHeight + 400 + 'px';
+    btnCollapse.innerHTML = '&#9660;';
+  }
+});
+
+// ── Controls ──────────────────────────────────────────────
+const btnStart = document.getElementById('btn-start');
+const btnStop  = document.getElementById('btn-stop');
+const urlInput = document.getElementById('url-input');
+const srcLang  = document.getElementById('src-lang');
+const destLang = document.getElementById('dest-lang');
+const statusDot = document.getElementById('status-dot');
+
+btnStart.addEventListener('click', async () => {
+  const url = urlInput.value.trim();
+  if (!url) { urlInput.focus(); return; }
+
+  btnStart.disabled = true;
+  try {
+    const res = await fetch(`${API}/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        stream_url: url,
+        src_lang: srcLang.value,
+        dest_lang: destLang.value,
+      }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+
+    setRunning(true);
+    startPolling();
+  } catch (err) {
+    alert('Could not start: ' + err.message);
+    btnStart.disabled = false;
+  }
+});
+
+btnStop.addEventListener('click', async () => {
+  btnStop.disabled = true;
+  try {
+    await fetch(`${API}/stop`, { method: 'POST' });
+  } catch (_) {}
+  setRunning(false);
+  stopPolling();
+});
+
+function setRunning(on) {
+  btnStart.disabled = on;
+  btnStop.disabled = !on;
+  statusDot.className = on ? 'active' : '';
+}
+
+// ── Polling ───────────────────────────────────────────────
+function startPolling() {
+  stopPolling();
+  poll();
+  polling = setInterval(poll, 3000);
+}
+
+function stopPolling() {
+  if (polling) { clearInterval(polling); polling = null; }
+}
+
+async function poll() {
+  try {
+    const res = await fetch(`${API}/latest`);
+    if (!res.ok) { markError(); return; }
+    const data = await res.json();
+    statusDot.className = 'active';
+
+    const translation = (data.translation || '').trim();
+    const original    = (data.recognized_text || '').trim();
+
+    if (translation && translation !== lastText) {
+      lastText = translation;
+      showSubtitle(translation, original);
+    }
+  } catch (_) {
+    markError();
+  }
+}
+
+function markError() {
+  statusDot.className = 'error';
+}
+
+// ── Subtitle display ──────────────────────────────────────
+const translationEl = document.getElementById('translation');
+const originalEl    = document.getElementById('original');
+const placeholder   = document.getElementById('placeholder');
+
+function showSubtitle(text, original) {
+  placeholder.style.display = 'none';
+  translationEl.textContent = text;
+  originalEl.textContent    = original ? `(${original})` : '';
+
+  // Recalc max-height after content change
+  if (!collapsed) {
+    collapsible.style.maxHeight = collapsible.scrollHeight + 'px';
+  }
+
+  // Fade-in animation
+  translationEl.style.opacity = '0';
+  translationEl.style.transition = 'opacity 0.4s';
+  requestAnimationFrame(() => { translationEl.style.opacity = '1'; });
+}
+
+// ── Init: check if backend is already running ─────────────
+(async () => {
+  try {
+    const res = await fetch(`${API}/status`);
+    if (res.ok) {
+      const s = await res.json();
+      if (s.is_translating) {
+        urlInput.value = s.stream_url || '';
+        // Match selects as best as possible
+        [...srcLang.options].forEach(o => { if (o.value === s.src_lang) o.selected = true; });
+        [...destLang.options].forEach(o => { if (o.value === s.dest_lang || o.value.startsWith(s.dest_lang)) o.selected = true; });
+        setRunning(true);
+        startPolling();
+      }
+    }
+  } catch (_) {}
+})();
+</script>
+</body>
+</html>
