@@ -21,13 +21,27 @@ SubCast brings live AI-powered subtitles to any stream or podcast — in your la
 
 ---
 
-## 📱 Platforms
+## 📱 Device Support
 
-| Device | How to use |
-|--------|-----------|
-| Android TV | Install APK, connect to server |
-| Windows PC | Run `run_server.bat`, use desktop widget |
-| Mobile (Android/iOS) | Open browser, go to `your-server-ip:5000/mobile` |
+| Device | Method | Experience |
+|--------|--------|-----------|
+| Android TV | Install APK | ⭐ Best — full screen stream + subtitles + chat |
+| Android Phone/Tablet | Install APK | Great — stream + subtitles |
+| iPhone / iPad | Browser → `server-ip:5000/mobile` | Good — subtitles companion |
+| Windows PC | Desktop widget (PyQt6) | Great — floating subtitle overlay |
+| Any browser | `server-ip:5000/mobile` | Good — subtitles on any device |
+
+### Quick Start by Device
+
+**Android TV / Android Phone:**
+Download `SubCast.apk` from [Releases](https://github.com/NikoVlasov/SubCast/releases) and sideload it.
+
+**iPhone / iPad:**
+Make sure SubCast server is running on your PC.
+Open Safari and go to `http://your-server-ip:5000/mobile`
+
+**Windows Desktop:**
+Run `run_server.bat` then launch `widget.py` for a floating subtitle overlay.
 
 ---
 
@@ -45,7 +59,7 @@ SubCast brings live AI-powered subtitles to any stream or podcast — in your la
 
 **1. Clone the repository**
 ```bash
-git clone https://github.com/yourusername/subcast.git
+git clone https://github.com/NikoVlasov/SubCast.git
 cd subcast
 ```
 
@@ -69,7 +83,7 @@ python app.py
 
 **5. Install the Android TV app**
 
-Download `SubCast.apk` from [Releases](https://github.com/yourusername/subcast/releases) and sideload it onto your Android TV.
+Download `SubCast.apk` from [Releases](https://github.com/NikoVlasov/SubCast/releases) and sideload it onto your Android TV.
 
 ---
 
