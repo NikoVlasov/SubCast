@@ -1,0 +1,9 @@
+.env
+*.wav
+*.mp3
+__pycache__/
+.venv/
+*.pyc
+temp_audio*
+*_raw.wav
+*_boosted.wav
