@@ -165,7 +165,7 @@ QMenu::separator      { height: 1px; background: #252525; margin: 3px 0; }
 
 class _Sig(QObject):
     translation = pyqtSignal(str, str)        # translation, original
-    status      = pyqtSignal(bool, str, str, str)  # running, url, src, dest
+    status      = pyqtSignal(bool, str, str)  # running, url, dest
     start_ok    = pyqtSignal()
     start_fail  = pyqtSignal()
     stop_done   = pyqtSignal()
@@ -271,7 +271,7 @@ class TranslatorWidget(QWidget):
         lay.setContentsMargins(12, 0, 6, 0)
         lay.setSpacing(8)
 
-        title = QLabel("ULTRA TRANSLATOR")
+        title = QLabel("SUBCAST")
         title.setStyleSheet(
             "color: #1e293b; font-size: 8px; font-weight: bold;"
             " letter-spacing: 2px;"
@@ -347,19 +347,6 @@ class TranslatorWidget(QWidget):
             lbl.setStyleSheet("color: #374151; font-size: 11px;")
             return lbl
 
-        lang_row.addWidget(_dim("Stream language"))
-
-        self._src = QComboBox()
-        self._src.setToolTip("The language the streamer speaks")
-        for name, _ in LANGUAGES:
-            self._src.addItem(name)
-        self._src.setCurrentText("Spanish")
-        lang_row.addWidget(self._src)
-
-        arrow = QLabel("→")
-        arrow.setStyleSheet("color: #2d3748; font-size: 15px;")
-        lang_row.addWidget(arrow)
-
         lang_row.addWidget(_dim("Translate to"))
 
         self._dest = QComboBox()
@@ -434,17 +421,16 @@ class TranslatorWidget(QWidget):
             self._url.setFocus()
             return
         self._btn_start.setEnabled(False)
-        src  = self._lang_code(self._src.currentText())
         dest = self._lang_code(self._dest.currentText())
         threading.Thread(
-            target=self._post_start, args=(url, src, dest), daemon=True
+            target=self._post_start, args=(url, dest), daemon=True
         ).start()
 
-    def _post_start(self, url: str, src: str, dest: str):
+    def _post_start(self, url: str, dest: str):
         try:
             resp = requests.post(
                 f"{API}/start",
-                json={"stream_url": url, "src_lang": src, "dest_lang": dest},
+                json={"stream_url": url, "dest_lang": dest},
                 timeout=5,
             )
             if resp.ok:
@@ -557,19 +543,15 @@ class TranslatorWidget(QWidget):
                 self._sig.status.emit(
                     s.get("is_translating", False),
                     s.get("stream_url", ""),
-                    s.get("src_lang", "es"),
                     s.get("dest_lang", "ru"),
                 )
         except Exception:
             pass
 
-    def _on_status_restore(self, running: bool, url: str, src: str, dest: str):
+    def _on_status_restore(self, running: bool, url: str, dest: str):
         if url:
             self._url.setText(url)
-        src_name  = self._lang_name(src)
         dest_name = self._lang_name(dest)
-        if src_name:
-            self._src.setCurrentText(src_name)
         if dest_name:
             self._dest.setCurrentText(dest_name)
         if running:
