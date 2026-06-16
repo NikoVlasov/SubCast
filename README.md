@@ -48,7 +48,6 @@ SubCast adds live, AI-translated subtitles to Twitch, YouTube Live, and Kick str
 | Device | Method | Experience |
 | --- | --- | --- |
 | **Android TV** | Install APK | ⭐ Best — full-screen stream + subtitles + chat |
-| Android phone / tablet | Install APK | Great — stream + subtitles |
 | Windows PC | `widget.py` overlay | Good — floating subtitle window |
 
 The **server runs on a Windows PC** on your network. The Android TV app connects to it over Wi-Fi.
@@ -60,7 +59,7 @@ The **server runs on a Windows PC** on your network. The Android TV app connects
 ### Requirements
 
 - A **Windows PC** to run the translation server (any modern PC works — it offloads heavy work to the cloud)
-- **Android TV** (or Android phone) for the best experience
+- An **Android TV** device (the app is built for TV — phones aren't supported yet)
 - **Python 3.10+**
 - **ffmpeg** installed and on your PATH
 - A free **[Groq API key](https://console.groq.com)** — for speech recognition
